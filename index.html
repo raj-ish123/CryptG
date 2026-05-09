@@ -33,6 +33,52 @@
     button:hover {
       background-color: #45a049;
     }
+    button.header-btn {
+      width: auto;
+      flex-shrink: 0;
+      margin-bottom: 0;
+      white-space: nowrap;
+    }
+    .page-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 10px;
+    }
+    .page-header h1 {
+      margin: 0;
+      font-size: clamp(1.1rem, 4vw, 1.5rem);
+      flex: 1;
+      min-width: 0;
+    }
+    .generator-panel.hidden {
+      display: none;
+    }
+    .sheet-panel.hidden {
+      display: none;
+    }
+    .sheet-panel:not(.hidden) #sheetEmbed {
+      height: calc(100vh - 88px);
+      min-height: 400px;
+    }
+    .container.container--sheet-focus {
+      min-height: calc(100vh - 40px);
+      display: flex;
+      flex-direction: column;
+    }
+    .container.container--sheet-focus .sheet-panel:not(.hidden) {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+    .container.container--sheet-focus #sheetEmbed {
+      flex: 1;
+      min-height: 0;
+      height: auto;
+    }
     .output {
       margin-top: 20px;
     }
@@ -48,12 +94,23 @@
     pre {
       margin: 0;
     }
+    #sheetEmbed {
+      width: 100%;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      display: block;
+    }
   </style>
 </head>
 <body>
 
-<div class="container">
-  <h1>Cryptogram Generator</h1>
+<div class="container" id="mainContainer">
+  <header class="page-header">
+    <h1>Cryptogram Generator</h1>
+    <button type="button" id="viewToggleBtn" class="header-btn" onclick="toggleGeneratorSheetView()" aria-pressed="false">Sheet only</button>
+  </header>
+
+  <div id="generatorPanel" class="generator-panel">
   <input type="text" id="inputString" placeholder="Enter your phrase..." />
   <button onclick="generateCryptogram()">Generate</button>
   <button onclick="copyToClipboard('cryptogram')">📋 Copy Number Cryptogram</button>
@@ -76,10 +133,53 @@
     <h3>Letter-to-Letter Key:</h3>
     <div id="letterMap" class="key"></div>
   </div>
+  </div>
+
+  <div id="sheetPanel" class="sheet-panel hidden" aria-hidden="true">
+    <iframe id="sheetEmbed" title="CryptG log spreadsheet"></iframe>
+  </div>
 </div>
 
 <script>
 const APPS_SCRIPT_URL = 'https://script.google.com/a/macros/playsimple.in/s/AKfycbwvhnemiXLAd3Fa98u53lZU_2T3djrp91hYhL8MSMPxGPEWzPbL9qHdlE8XxyXgGu1v/exec';
+const SPREADSHEET_ID = '1xPJb0tK3bUakJ1y56it-MLbyEiakraXJmmr_mlsGBh0';
+const SHEET_EMBED_URL = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/edit?usp=sharing&embedded=true&gid=0`;
+
+function ensureSheetEmbedLoaded() {
+  const el = document.getElementById('sheetEmbed');
+  if (el && !el.src) el.src = SHEET_EMBED_URL;
+}
+
+function toggleGeneratorSheetView() {
+  const gen = document.getElementById('generatorPanel');
+  const sheet = document.getElementById('sheetPanel');
+  const btn = document.getElementById('viewToggleBtn');
+  const shell = document.getElementById('mainContainer');
+
+  const showSheetOnly = gen.classList.contains('hidden') === false;
+  if (showSheetOnly) {
+    gen.classList.add('hidden');
+    sheet.classList.remove('hidden');
+    sheet.setAttribute('aria-hidden', 'false');
+    shell.classList.add('container--sheet-focus');
+    btn.textContent = 'Show generator';
+    btn.setAttribute('aria-pressed', 'true');
+    ensureSheetEmbedLoaded();
+  } else {
+    gen.classList.remove('hidden');
+    sheet.classList.add('hidden');
+    sheet.setAttribute('aria-hidden', 'true');
+    shell.classList.remove('container--sheet-focus');
+    btn.textContent = 'Sheet only';
+    btn.setAttribute('aria-pressed', 'false');
+  }
+}
+
+function refreshSheetEmbed() {
+  const el = document.getElementById('sheetEmbed');
+  if (!el || !el.src) return;
+  el.src = SHEET_EMBED_URL;
+}
 
 function generateCryptogram() {
   const input = document.getElementById("inputString").value.toUpperCase().trim();
@@ -227,6 +327,7 @@ async function sendToGoogleSheet() {
     document.body.appendChild(form);
     form.submit();
     document.body.removeChild(form);
+    refreshSheetEmbed();
     alert('Sent to Google Sheet!');
   } catch (err) {
     alert('Failed to send: ' + err.message);
